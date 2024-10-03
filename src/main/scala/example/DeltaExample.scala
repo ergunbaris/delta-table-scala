@@ -1,6 +1,6 @@
 package example
 
-import io.delta.tables.DeltaTable
+import io.delta.tables._
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.{col, lit}
 
@@ -13,6 +13,7 @@ object DeltaExample extends Greeting with App {
     .master("local[*]")
     .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
     .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+    .config("spark.sql.warehouse.dir", "target/spark-warehouse")
     .getOrCreate()
 
   case class Model(id: Int, value: String)
@@ -23,41 +24,31 @@ object DeltaExample extends Greeting with App {
 
   df.show()
 
-  val outputPath = "./target/delta-table-python"
+  val tableName = "default.delta_table"
 
-  df.write.format("delta").save(outputPath)
+  df.write.format("delta").saveAsTable(tableName)
 
-  val deltaTable = DeltaTable.forPath(spark, outputPath)
+  val deltaTable = DeltaTable.forName(spark, tableName)
 
   deltaTable.update(condition = col("id") === "2", set = Map("value" -> lit("B_updated")))
-
-  val updatedData = spark.read.format("delta").load(outputPath)
-
-  updatedData.show()
 
   deltaTable.history(10).show(10)
 
   deltaTable.delete(col("id") === "3")
 
-  val updatedData2 = spark.read.format("delta").load(outputPath)
+  deltaTable.history(10).show(10)
 
-  updatedData2.show()
+  deltaTable.optimize().executeZOrderBy("id")
+
+  deltaTable.optimize().executeCompaction()
 
   deltaTable.history(10).show(10)
 
-  deltaTable.optimize()
+  deltaTable.as("delta_table")
 
-  deltaTable.history(10).show(10)
-
-  deltaTable.restoreToVersion(0).show()
-
-  deltaTable.restoreToVersion(1).show()
-
-  deltaTable.restoreToVersion(2).show()
-
-  deltaTable.history(10).show(10)
-
-
+  spark.read.format("delta").option("versionAsOf", 0 ).table(tableName).show()
+  spark.read.format("delta").option("versionAsOf", 1 ).table(tableName).show()
+  spark.read.format("delta").option("versionAsOf", 2 ).table(tableName).show()
 
 }
 
