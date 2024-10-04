@@ -44,11 +44,11 @@ object DeltaExample extends Greeting with App {
 
   deltaTable.history(10).show(10)
 
-  deltaTable.as("delta_table")
-
   spark.read.format("delta").option("versionAsOf", 0 ).table(tableName).show()
   spark.read.format("delta").option("versionAsOf", 1 ).table(tableName).show()
   spark.read.format("delta").option("versionAsOf", 2 ).table(tableName).show()
+
+  spark.sql(s"DROP TABLE $tableName")
 
 }
 
